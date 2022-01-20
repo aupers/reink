@@ -308,7 +308,7 @@ int do_eeprom_write(const char* raw_device, unsigned int pm, unsigned short int 
 int do_make_report(const char* raw_device, unsigned char model_code[]);
 int do_waste_reset(const char* raw_device, unsigned int pm);
 /* -------------------- */
-
+//aupers
 int main(int argc, char** argv)
 {
 	int opt; 					//current option
