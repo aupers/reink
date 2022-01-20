@@ -547,6 +547,8 @@ int main(int argc, char** argv)
 	}
 	//end of options parsing
 
+	printf("model_code is [%d][%d]\n",model_code[0],model_code[1]);
+
 	//CMD_REPORT is a special case
 	if (command == CMD_REPORT)
 		return do_make_report(raw_device, model_code);
@@ -947,18 +949,23 @@ int do_make_report(const char* raw_device, unsigned char model_code[])
 	//opening EPSON-CTRL
 	if ((socket2 = open_channel(fd, "EPSON-CTRL")) < 0)
 	{
+		printf("Error : do_make_report open_channel EPSON-CTRL Error\n");
 		printer_disconnect(fd);
 		return 0;
 	}
 
 	//opening EPSON-DATA (just try to open - then close)
 	if ((socket40 = open_channel(fd, "EPSON-DATA")) >= 0)
-		close_channel(fd, socket40); //no need anymore
+		{
+   		   printf("Error : do_make_report open_channel EPSON-DATA Error\n");
+		   close_channel(fd, socket40); //no need anymore
+		}
 
 	//reply to "di" command
 	readed = INPUT_BUF_LEN;
 	if (printer_transact(fd, socket2, "di\1\0\1", 5, buf, &readed) < 0)
 	{
+		printf("Error : do_make_report printer_transact di-1-0-1 Error\n");
 		close_channel(fd, socket2);
 		printer_disconnect(fd);
 		return 0;
@@ -968,6 +975,7 @@ int do_make_report(const char* raw_device, unsigned char model_code[])
 	readed = INPUT_BUF_LEN;
 	if (printer_transact(fd, socket2, "st\1\0\1", 5, buf, &readed) < 0)
 	{
+	    printf("Error : do_make_report printer_transact st-1-0-1 Error\n");
 		close_channel(fd, socket2);
 		printer_disconnect(fd);
 		return 0;

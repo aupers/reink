@@ -680,17 +680,23 @@ static int sendReceiveCmd(int fd, unsigned char *cmd, int len, unsigned char *an
    int rd;
    if ( (rd = writeCmd(fd, cmd, len ) ) != len )
    {
-      if ( rd < 0 ) return -1;
+      printf("Error: sendReceiveCmd writeCmd rd[%d]\n",rd);
+      if ( rd < 0 ) 
+      {      	
+	  	return -1;
+      }
       return 0;
    }
    rd = readAnswer(fd, answer, expectedlen );
    if ( rd == 0 )
    {
+      printf("Error: sendReceiveCmd readAnser rd[0]\n");
       /* no answer from device */
       return 0;
    }
    else if ( rd < 0 )
    {
+   	  printf("Error: sendReceiveCmd readAnser rd[%d]\n",rd);
       /* interrupted write call */
       if ( debugD4 )
          fprintf(stderr,"interrupt received\n");
@@ -698,14 +704,24 @@ static int sendReceiveCmd(int fd, unsigned char *cmd, int len, unsigned char *an
    }
    else
    {
+      printf("Info: sendReceiveCmd readAnser rd buf");
+   	  int loop=0;
+	  for(loop=0; loop < rd; loop++)
+  	  {
+  	   printf(" [%d] ", answer[loop]);
+	   if(!(4%loop))
+	   	printf("\n");
+  	  }
       /* check result */
       if ( answer[6] == 0x7f )
       {
+         printf("Error: sendReceiveCmd readAnser answr[6]==0x7f answer[9]=[%x]\n",answer[9]);
          printError(answer[9]);
          return -1;
       }
       else if (  answer[7] != 0 )
       {
+         printf("Error: sendReceiveCmd readAnser answr[7]=%x \n",answer[7]);
          if ( printError(answer[7]) )
          {
             return -1;
@@ -742,26 +758,37 @@ int EnterIEEE(int fd)
 Loop:
    if ( writeCmd(fd, cmd, sizeof(cmd) ) != sizeof(cmd) )
    {
+   	  printf("Error: EnterIEEE writeCmd error\n");
       return 0;
    }
    rd = readAnswer(fd, buf, 8);
+   printf("Info : EnterIEEE readAnser rd=[%d]\n",rd);
    if ( rd == 0 )
    {
+   	  printf("Error : EnterIEEE readAnser error[0]\n");
       /* no answer from device */
       return 0;
    }
    else if ( rd < 0 )
    {
+   	  printf("Error : EnterIEEE readAnser error[%d]\n",rd);
       /* interrupted write call */
       return 0;
    }
    else
    {
       int i;
+	  printf("rd is :");
       /* check result */
       for (i=0; i < rd; i++ )
+   	  {
+	  	printf(" [%d] ",buf[i]);
         if ( buf[i] != 0 )
+       	{
+     	   printf("\n");
            break;
+       	}
+   	  }
       if ( i == rd ) goto Loop;
       return 1;
    }
