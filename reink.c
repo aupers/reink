@@ -1493,7 +1493,7 @@ int read_eeprom_address(int fd, int socket_id, unsigned int pm, unsigned short i
 
 	if (strlen(reply_data) != reply_data_len)
 	{
-		printf( "Warning : ReplyData length differ ! [%d][%d] \n", reply_data_len, strlen(reply_data));
+		printf( "Warning : ReplyData length differ ! [%d][%ld] \n", reply_data_len, strlen(reply_data));
 		reply_data_len -= 2; //assuming this is one-byte addresses printer
 		if (strlen(reply_data) == reply_data_len)
 		{
