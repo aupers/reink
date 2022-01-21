@@ -458,7 +458,7 @@ int readAnswer(int fd, unsigned char *buf, int len)
    gettimeofday(&beg, NULL);
 
    if (debugD4)
-     fprintf(stderr, "length: %i\n", len);
+     printf( "length: %i\n", len);
    while ( total < len )
    {
       SET_TIMER(ti,oti, d4RdTimeout);
@@ -467,16 +467,16 @@ int readAnswer(int fd, unsigned char *buf, int len)
 	{
 	  if (first_read)
 	    {
-	      fprintf(stderr, "read: ");
+	      printf( "read: ");
 	      first_read = 0;
 	    }
 	  if (rd < 0)
 	    {
-	      fprintf(stderr, "%i %s\n", rd, errno != 0 ?strerror(errno) : "");
+	      printf( "%i %s\n", rd, errno != 0 ?strerror(errno) : "");
 	      first_read = 1;
 	    }
 	  else
-	    fprintf(stderr, "%i ", rd);
+	    printf( "%i ", rd);
 	}
       RESET_TIMER(ti,oti);
       if ( rd <= 0 )
@@ -487,7 +487,7 @@ int readAnswer(int fd, unsigned char *buf, int len)
          if ( dt > d4RdTimeout * 2 )
          {
             if ( debugD4 )
-               fprintf(stderr,"Timeout 1 at readAnswer() rcv %d bytes\n",total);
+               printf("Timeout 1 at readAnswer() rcv %d bytes\n",total);
             timeoutGot = 1;
             break;
          }
@@ -520,18 +520,18 @@ int readAnswer(int fd, unsigned char *buf, int len)
 #  if PTIME
       gettimeofday(&end, NULL);
 #  endif
-      fprintf(stderr, "total: %i\n", total);
+      printf("total: %i\n", total);
       printHexValues("Recv: ",buf,total);
 #  if PTIME
       dt = (end.tv_sec  - beg.tv_sec) * 1000000;
-      dt += end.tv_usec - beg.tv_usec;
-      fprintf(stderr,"Read time %5.3f s\n",(double)dt/1000000);
+      printf("Read time %5.3f s\n",(double)dt/1000000);
+   dt += end.tv_usec - beg.tv_usec;
 #  endif
    }
    if ( timeoutGot )
    {
       if ( debugD4 )
-         fprintf(stderr,"Timeout 2 at readAnswer()\n");
+         printf("Timeout 2 at readAnswer()\n");
       return -1;
    }
    return total;
@@ -677,7 +677,9 @@ static int _readData(int fd, unsigned char *buf, int len)
 
 static int sendReceiveCmd(int fd, unsigned char *cmd, int len, unsigned char *answer, int expectedlen)
 {
+   printf("sendReceiveCmd() start\n ");
    int rd;
+   int sendReceiveCmd_debug = 0;
    if ( (rd = writeCmd(fd, cmd, len ) ) != len )
    {
       printf("Error: sendReceiveCmd writeCmd rd[%d]\n",rd);
@@ -699,19 +701,22 @@ static int sendReceiveCmd(int fd, unsigned char *cmd, int len, unsigned char *an
    	  printf("Error: sendReceiveCmd readAnser rd[%d]\n",rd);
       /* interrupted write call */
       if ( debugD4 )
-         fprintf(stderr,"interrupt received\n");
+         printf("interrupt received\n");
       return -1;
    }
    else
    {
-      printf("Info: sendReceiveCmd readAnser rd buf");
-   	  int loop=0;
-	  for(loop=0; loop < rd; loop++)
-  	  {
-  	   printf(" [%d] ", answer[loop]);
-	   if(!(4%loop))
-	   	printf("\n");
-  	  }
+   	  if(sendReceiveCmd_debug)
+   	  {
+	      printf("Info: sendReceiveCmd readAnser rd buf");
+	   	  int loop=0;
+		  for(loop=0; loop < rd; loop++)
+	  	  {
+	  	   printf(" [%d] ", answer[loop]);
+		   if(!(4%loop))
+		   	printf("\n");
+	  	  }
+   	  }	  
       /* check result */
       if ( answer[6] == 0x7f )
       {
@@ -730,6 +735,7 @@ static int sendReceiveCmd(int fd, unsigned char *cmd, int len, unsigned char *an
       }
       else
       {
+         printf("sendReceiveCmd() end return[%d]\n ",rd);
          return rd;
       }
    }
@@ -746,6 +752,8 @@ static int sendReceiveCmd(int fd, unsigned char *cmd, int len, unsigned char *an
 
 int EnterIEEE(int fd)
 {
+
+   printf("EnterIEEE() start()\n");
    unsigned char buf[200];
    unsigned char cmd[] = 
    {
@@ -790,6 +798,8 @@ Loop:
        	}
    	  }
       if ( i == rd ) goto Loop;
+
+	  printf("EnterIEEE() end()\n");
       return 1;
    }
 }
@@ -805,6 +815,7 @@ Loop:
 
 int Init(int fd)
 {
+   printf("Init() start\n");
    unsigned char buf[20];
    init_t cmd;
    int rd;
@@ -819,6 +830,7 @@ int Init(int fd)
    cmd.revision      = 0x10;
     
    rd = sendReceiveCmd(fd, (unsigned char*)&cmd, sizeof(cmd), buf, 9 );
+   printf("Init() end return[%d]\n",rd);
    return rd == 9 ? 1 : 0;
 }
 
@@ -860,6 +872,7 @@ int Exit(int fd)
 
 int GetSocketID(int fd, const char *serviceName)
 {
+	printf("GetSocketID() start\n");
    /* the service name may not be longer as 40 bytes */
    int len = sizeof(cmdHeader_t) + strlen(serviceName);
    char buf[100];
@@ -878,10 +891,12 @@ int GetSocketID(int fd, const char *serviceName)
    rd = sendReceiveCmd(fd, (unsigned char*)buf, len, rBuf, len + 2);
    if ( rd > 0 )
    {
+   	  printf("GetSocketID() end rd[%d] rBuf[8]=[%x]\n",rd,rBuf[8]);
       return rBuf[8];
    }
    else
    {
+   	  printf("GetSocketID() end\n");
       return 0;
    }
 }
@@ -994,6 +1009,7 @@ int CloseChannel(int fd, unsigned char socketID)
 
 int CreditRequest(int fd, unsigned char socketID)
 {
+   printf("CreditRequest() star\n");
    int           rd;
    unsigned char            buf[100];
    unsigned char            rBuf[100];
@@ -1015,10 +1031,12 @@ int CreditRequest(int fd, unsigned char socketID)
    if ( rd == 12 )
    {
       /* this is the credit */
+      printf("CreditRequest() end rd=12 return[%x]\n",(rBuf[10]*256)+rBuf[11]);
       return (rBuf[10]*256)+rBuf[11];
    }
    else
    {
+      printf("CreditRequest() error end rd=%d\n",rd > 0 ? 0 : rd);
       return rd > 0 ? 0 : rd; /* there was an error */
    } 
 }
@@ -1036,6 +1054,7 @@ int CreditRequest(int fd, unsigned char socketID)
 /* needed for sending of commands (channel 2) or scanning */
 int Credit(int fd, unsigned char socketID, int credit)
 {
+   printf("Credit() start \n");
    int rd;
    unsigned char buf[100];
    unsigned char rBuf[100];
@@ -1055,10 +1074,12 @@ int Credit(int fd, unsigned char socketID, int credit)
    rd = sendReceiveCmd(fd, buf, 11, rBuf, 10);
    if ( rd == 10 )
    {
+      printf("Credit() end rd=10 \n");
       return 1;
    }
    else
    {
+      printf("Credit() error end rd=%d \n",rd);
       return 0;
    }
 }
@@ -1127,6 +1148,7 @@ int askForCredit(int fd, unsigned char socketID, int *sndSize, int *rcvSize)
 
 int writeData(int fd, unsigned char socketID, const unsigned char *buf, int len, int eoj)
 {
+   printf("writeData start\n");
    unsigned char  cmd[6];
    int wr = 0;
    int ret = 0;
@@ -1136,7 +1158,7 @@ int writeData(int fd, unsigned char socketID, const unsigned char *buf, int len,
    static int bLen   = 0;
    if ( debugD4 )
    {
-      fprintf(stderr,"--- Send Data      ---\n");
+      printf("--- Send Data      ---\n");
       gettimeofday(&beg, NULL);
    }
    len += 6;
@@ -1166,7 +1188,7 @@ int writeData(int fd, unsigned char socketID, const unsigned char *buf, int len,
       RESET_TIMER(ti,oti);
       if ( ret == -1 )
       {
-         perror("write: ");
+         printf("write: ");
       }
       else
       {
@@ -1183,7 +1205,7 @@ int writeData(int fd, unsigned char socketID, const unsigned char *buf, int len,
 # endif  
 //      printHexValues("Send: ", buf, wr);
 # if PTIME
-       fprintf(stderr,"Write time %5.3f s\n",(double)dt/1000000);
+       printf("Write time %5.3f s\n",(double)dt/1000000);
 # endif
    }
 
@@ -1191,6 +1213,7 @@ int writeData(int fd, unsigned char socketID, const unsigned char *buf, int len,
       wr -= 6;
    else
       wr = -1;
+   printf("writeData end return[%d]\n",wr);
    return wr;
 
 }
@@ -1210,6 +1233,7 @@ int writeData(int fd, unsigned char socketID, const unsigned char *buf, int len,
 
 int readData(int fd, unsigned char socketID, unsigned char *buf, int len)
 {
+   printf("readData() start \n");
    int ret;
    /* give credit */
    if ( Credit(fd, socketID, 1) == 1 )
@@ -1217,10 +1241,12 @@ int readData(int fd, unsigned char socketID, unsigned char *buf, int len)
       /* wait a little bit */
       usleep(1000);
       ret = _readData(fd, buf, len);
+	  printf("readData() end ret=%d\n",ret);
       return ret; 
    }
    else
    {
+   	  printf("readData() error end \n");
       return -1;
    }
 }

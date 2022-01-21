@@ -165,7 +165,7 @@
 #define D(__c) 	if (ri_debug) {__c;};
 #define D_OK 	D(fprintf(stderr, "OK\n"))
 
-int ri_debug = 0;
+int ri_debug = 1;
 
 void print_usage(const char* progname);
 
@@ -921,7 +921,7 @@ int do_make_report(const char* raw_device, unsigned char model_code[])
 
 	printf("ReInk v%d.%d test report.\n", REINK_VERSION_MAJOR, REINK_VERSION_MINOR);
 
-	fprintf(stderr, "Please, be patient.\nWait at least 10 minutes before force interrupt.\n");
+	printf("Please, be patient.\nWait at least 10 minutes before force interrupt.\n");
 
 	//uname -a
 	if (!uname(&linux_info))
@@ -943,10 +943,12 @@ int do_make_report(const char* raw_device, unsigned char model_code[])
 
 	//raw_device (r/w status)
 	//can enter in ieee1284.4 mode?
+	printf("do_make_report[1]\n");
 	if ((fd = printer_connect(raw_device)) < 0)
 		return 0;
 
 	//opening EPSON-CTRL
+	printf("do_make_report[2]\n");
 	if ((socket2 = open_channel(fd, "EPSON-CTRL")) < 0)
 	{
 		printf("Error : do_make_report open_channel EPSON-CTRL Error\n");
@@ -954,6 +956,7 @@ int do_make_report(const char* raw_device, unsigned char model_code[])
 		return 0;
 	}
 
+	printf("do_make_report[3]\n");
 	//opening EPSON-DATA (just try to open - then close)
 	if ((socket40 = open_channel(fd, "EPSON-DATA")) >= 0)
 		{
@@ -961,6 +964,7 @@ int do_make_report(const char* raw_device, unsigned char model_code[])
 		   close_channel(fd, socket40); //no need anymore
 		}
 
+	printf("do_make_report[4]\n");
 	//reply to "di" command
 	readed = INPUT_BUF_LEN;
 	if (printer_transact(fd, socket2, "di\1\0\1", 5, buf, &readed) < 0)
@@ -971,6 +975,7 @@ int do_make_report(const char* raw_device, unsigned char model_code[])
 		return 0;
 	}
 
+	printf("do_make_report[5]\n");
 	//reply to "st" command
 	readed = INPUT_BUF_LEN;
 	if (printer_transact(fd, socket2, "st\1\0\1", 5, buf, &readed) < 0)
@@ -980,7 +985,7 @@ int do_make_report(const char* raw_device, unsigned char model_code[])
 		printer_disconnect(fd);
 		return 0;
 	}
-
+	printf("do_make_report[6]\n");
 	//init unknown printer
 	printers[PM_UNKNOWN].model_code[0] = model_code[0];
 	printers[PM_UNKNOWN].model_code[1] = model_code[1];
@@ -989,14 +994,18 @@ int do_make_report(const char* raw_device, unsigned char model_code[])
 	printers[PM_UNKNOWN].twobyte_addresses = 1;
 
 	if (model_code[0] != 0 || model_code[1] != 0)
+	{
 		have_model_code = 1;
+		printf("model_code[%x][%x] have_model_code=1 \n",model_code[0], model_code[1]);
+	}
 	else
 	{
 		printf("Searching printer secret model code with brute force.\n");
-		fflush(stdout);
 	}
+	
 
 	//let's find out the model code
+	printf("let's find out the model code! \n");
 	while (printers[PM_UNKNOWN].model_code[0] != 0xFF && !have_model_code)
 	{
 		//try to read from eeprom (address 00)
@@ -1018,6 +1027,7 @@ int do_make_report(const char* raw_device, unsigned char model_code[])
 		}
 	}
 
+	printf("do_make_report[7] have_mode_code[%d]\n",have_model_code);
 	if (!have_model_code)
 	{
 		close_channel(fd, socket2);
@@ -1030,7 +1040,7 @@ int do_make_report(const char* raw_device, unsigned char model_code[])
 	//reenabling debug to see what we have when read from printer
 	setDebug(1);
 	ri_debug = 1;
-
+    printf("do_make_report[8]\n");
 	if (read_eeprom_address(fd, socket2, PM_UNKNOWN, 0x00, &data) != 0)
 	{
 		close_channel(fd, socket2);
@@ -1056,20 +1066,20 @@ int do_make_report(const char* raw_device, unsigned char model_code[])
 	}
 
 	//redirecting stderr back to console
-	dup2(original_stderr, fileno(stderr));
+	//dup2(original_stderr, fileno(stderr));
 
-	fprintf(stderr, "Report complete. Thank you.\n");
+	printf("Report complete. Thank you.\n");
 
 	if (have_model_code && (model_code[0] == 0 && model_code[1] == 0))
 	{
-		fprintf(stderr, "You will provide even more help for me if\n\
+		printf("You will provide even more help for me if\n\
 you run printer head cleaning now and\n\
 then make another report with command:\n\
 ./reink -r %s -t%02X%02X > ./testreport2.log\n", raw_device, printers[PM_UNKNOWN].model_code[0], printers[PM_UNKNOWN].model_code[1]);
 	}
 	else if (model_code[0] != 0 || model_code[1] != 0)
 	{
-		fprintf(stderr, "Now send me both reports.\n");
+		printf("Now send me both reports.\n");
 	}
 
 	close_channel(fd, socket2);
@@ -1128,48 +1138,50 @@ int get_tag(const char* source, int source_len, const char* tag, char* value, in
 	int pos_end;
 	int val_len;
 
-	D(fprintf(stderr, "=== get_tag ===\n"))
+	printf("=== get_tag ===\n");
+	
 
-	D(fprintf(stderr, "Searching for \"%s\" substring... ", tag));
+	printf("Searching for \"%s\" substring... \n", tag);
 
 	tag_len = strlen(tag);
+	printf("source[%s], source_len[%d], tag[%s], max_value_len[%d] tag_len[%d]\n",source,source_len,tag,max_value_len, tag_len);
 	pos = 0;
 	while ((pos + tag_len < source_len) &&  (0 != strncmp(source+pos, tag, tag_len)))
 		pos++;
 
 	if (pos + tag_len == source_len)
 	{
-		D(fprintf(stderr, "NOT FOUND.\n"));
+		printf( "NOT FOUND_1.\n");
 		return -1;
 	}
 
-	D(fprintf(stderr, "FOUND, pos=%d.\n", pos));
+	printf("FOUND, pos=%d.\n", pos);
 
 	pos += tag_len;
 
-	D(fprintf(stderr, "Searching for \";\" character... "));
+	printf("Searching for \";\" character... \n");
 	pos_end = pos;
 	while ((pos_end < source_len) && (source[pos_end] != ';'))
 		pos_end++;
 	if (pos_end  == source_len)
 	{
-		D(fprintf(stderr, "NOT FOUND.\n"));
+		printf("NOT FOUND_2.\n");
 		return -1;
 	}
-	D(fprintf(stderr, "FOUND, pos_end=%d.\n", pos_end));
+	printf("FOUND, pos_end=%d.\n", pos_end);
 
 	val_len = pos_end - pos;
 	if (val_len+1 > max_value_len)
 	{
-		D(fprintf(stderr, "Value(+'\\0') too long (%d) for given buffer (%d).\n", val_len+1, max_value_len));
+		printf("Value(+'\\0') too long (%d) for given buffer (%d).\n", val_len+1, max_value_len);
 		return 1;
 	}
 
 	memcpy(value, source + pos, val_len);
 	value[val_len] = '\0';
-	D(fprintf(stderr, "Tag value:\"%s\".\n", value));
+	printf("Tag value:\"%s\".\n", value);
 
-	D(fprintf(stderr, "^^^ get_tag ^^^\n"))
+	printf( "^^^ get_tag ^^^\n");
 
 	return 0;
 }
@@ -1244,62 +1256,62 @@ int printer_connect(const char* raw_device)
 {
 	int device;
 
-	D(fprintf(stderr, "=== printer_connect ===\n"));
+	printf("=== printer_connect ===\n");
 
-	D(fprintf(stderr, "Opening raw device... "))
+	printf("Opening raw device... \n");
 	device = open(raw_device, O_RDWR | O_SYNC);
 	if (device == -1)
 	{
 		fprintf(stderr, "Error opening device file '%s': %s\n", raw_device, strerror(errno));
 		return -1;
 	}
-	D_OK
+	printf("Opened raw device... \n");
 
 	clearSndBuf(device); //if there are some data from previous incoreectly terminated session
 
-	D(fprintf(stderr, "Entering IEEE 1284.4 mode... "))
+	printf( "Entering IEEE 1284.4 mode... ");
 	if (!EnterIEEE(device))
 	{
-		fprintf(stderr, "Can't enter in IEEE 1284.4 mode. Wrong printer device file?\n");
+		printf( "Can't enter in IEEE 1284.4 mode. Wrong printer device file?\n");
 		return -1;
 	}
-	D_OK
 
-	D(fprintf(stderr, "Perfoming IEEE 1284.4 Init transaction... "))
+
+	printf("Perfoming IEEE 1284.4 Init transaction... ");
 	if (!Init(device))
 	{
-		fprintf(stderr, "IEEE 1284.4: \"Init\" transaction failed.\n");
+		printf( "IEEE 1284.4: \"Init\" transaction failed.\n");
 		return -1;
 	}
-	D_OK
+	
 
-	D(fprintf(stderr, "^^^ printer_connect ^^^\n"));
+	printf("^^^ printer_connect ^^^\n");
 
 	return device;
 }
 
 int printer_disconnect(int fd)
 {
-	D(fprintf(stderr, "=== printer_disconnect ===\n"));
+	printf( "=== printer_disconnect ===\n");
 
-	D(fprintf(stderr, "Perfoming IEEE 1284.4 Exit transaction... "))
+	printf("Perfoming IEEE 1284.4 Exit transaction... \n");
 	if (!Exit(fd))
 	{
-		fprintf(stderr, "IEEE 1284.4: \"Exit\" transaction failed.\n");
+		printf( "IEEE 1284.4: \"Exit\" transaction failed.\n");
 		return -1;
 	}
-	D_OK
 
-	D(fprintf(stderr, "Closing raw device... "))
+
+	printf("Closing raw device... \n");
 	fd = close(fd);
 	if (fd == -1)
 	{
-		fprintf(stderr, "Error closing printer device file: %s\n", strerror(errno));
+		printf("Error closing printer device file: %s\n", strerror(errno));
 		return -1;
 	}
-	D_OK
 
-	D(fprintf(stderr, "^^^ printer_disconnect ^^^\n"));
+
+	printf( "^^^ printer_disconnect ^^^\n");
 
 	return 0;
 }
@@ -1311,42 +1323,42 @@ int open_channel(int fd, const char* service_name)
 	int max_send_packet = 0x0200; //maximum size of PC to printer packet (this value may be changed by the printer while opening a channel)
 	int max_recv_packet = 0x0200; //maximum size of printer to PC packet (this value may be changed by the printer while opening a channel)
 
-	D(fprintf(stderr, "=== open_channel ===\n"));
+	printf("=== open_channel ===\n");
 
-	D(fprintf(stderr, "Obtaining IEEE 1284.4 socket for \"%s\" service... ", service_name))
+	printf("Obtaining IEEE 1284.4 socket for \"%s\" service... \n", service_name);
 	if (!(socket = GetSocketID(fd, service_name)))
 	{
-		fprintf(stderr, "IEEE 1284.4: \"GetSocketID\" transaction failed.\n");
+		printf("IEEE 1284.4: \"GetSocketID\" transaction failed.\n");
 		return -1;
 	}
-	D(fprintf(stderr, "OK, socket=%d.\n", socket));
+	printf("OK, socket=%d.\n", socket);
 
-	D(fprintf(stderr, "Opening IEEE 1284.4 channel %d-%d... ", socket, socket))
+	printf("Opening IEEE 1284.4 channel %d-%d... \n", socket, socket);
 	if (1 != OpenChannel(fd, socket, &max_send_packet, &max_recv_packet))
 	{
-		fprintf(stderr, "IEEE 1284.4: \"OpenChannel\" transaction failed.\n");
+		printf("IEEE 1284.4: \"OpenChannel\" transaction failed.\n");
 		return -1;
 	}
-	D_OK
 
-	D(fprintf(stderr, "^^^ open_channel ^^^\n"));
+
+	printf("^^^ open_channel ^^^\n");
 
 	return socket;
 }
 
 int close_channel(int fd, int socket_id)
 {
-	D(fprintf(stderr, "=== close_channel ===\n"));
+	printf( "=== close_channel ===\n");
 
-	D(fprintf(stderr, "Closing IEEE 1284.4 channel %d-%d... ", socket_id, socket_id))
+	printf( "Closing IEEE 1284.4 channel %d-%d... ", socket_id, socket_id);
 	if (1 != CloseChannel(fd, socket_id))
 	{
-		fprintf(stderr, "IEEE 1284.4: \"CloseChannel\" transaction failed.\n");
+		printf("IEEE 1284.4: \"CloseChannel\" transaction failed.\n");
 		return -1;
 	}
-	D_OK
 
-	D(fprintf(stderr, "^^^ close_channel ^^^\n"));
+
+	printf( "^^^ close_channel ^^^\n");
 
 	return 0;
 }
@@ -1356,18 +1368,18 @@ int printer_transact(int fd, int socket_id, const char* buf_send, int send_len, 
 	int credits = 0; //count of ieee1284.4 credits I have left
 	int buf_len;	//the length of recieve buffer
 
-	D(fprintf(stderr, "=== printer_transact ===\n"));
+	printf("=== printer_transact ===\n");
 
 	buf_len = *recv_len;
 
-	D(fprintf(stderr, "Requesting some IEEE 1284.4 credits on channel %d-%d... ", socket_id, socket_id))
+	printf("Requesting some IEEE 1284.4 credits on channel %d-%d... \n", socket_id, socket_id);
 	credits = CreditRequest(fd, socket_id);
 	if (credits < 1)
 	{
-		fprintf(stderr, "IEEE 1284.4: \"CreditRequest\" transaction failed.\n");
+		printf("IEEE 1284.4: \"CreditRequest\" transaction failed.\n");
 		return -1;
 	}
-	D(fprintf(stderr, "OK, got %d credits.\n", credits))
+	printf( "OK, got %d credits.\n", credits);
 
 	/* // made automatically by readData later
 	D(fprintf(stderr, "Giving one IEEE 1284.4 credit to printer on channel %d-%d... ", ctrl_socket, ctrl_socket))
@@ -1379,23 +1391,22 @@ int printer_transact(int fd, int socket_id, const char* buf_send, int send_len, 
 	D_OK
 	*/
 
-	D(fprintf(stderr, "Writing data to printer... "))
+	printf("Writing data to printer... \n");
 	if (writeData(fd, socket_id, buf_send, send_len, 0) < send_len)
 	{
-		fprintf(stderr, "IEEE 1284.4: Error sending data to channel %d-%d.\n", socket_id, socket_id);
+		printf( "IEEE 1284.4: Error sending data to channel %d-%d.\n", socket_id, socket_id);
 		return -1;
 	}
-	D_OK
 
-	D(fprintf(stderr, "Get the answer... "))
+	printf( "Get the answer... \n");
 	if ((*recv_len = readData(fd, socket_id, buf_recv, buf_len)) < 0)
 	{
-		fprintf(stderr, "IEEE 1284.4: Error recieving data from channel %d-%d.\n", socket_id, socket_id);
+		printf("IEEE 1284.4: Error recieving data from channel %d-%d.\n", socket_id, socket_id);
 		return -1;
 	}
-	D_OK
 
-	D(fprintf(stderr, "^^^ printer_transact ^^^\n"));
+
+	printf( "^^^ printer_transact ^^^\n");
 
 	return 0;
 }
@@ -1408,6 +1419,7 @@ int printer_transact(int fd, int socket_id, const char* buf_send, int send_len, 
 
 void init_command(fcmd_header_t* cmd, unsigned int pm, unsigned char class, unsigned char name, unsigned short int extra_length)
 {
+    printf("init_command() start\n");
 	unsigned short int full_length;
 
 	full_length = 5 + extra_length;
@@ -1424,6 +1436,8 @@ void init_command(fcmd_header_t* cmd, unsigned int pm, unsigned char class, unsi
 
 	cmd->mcode1 = printers[pm].model_code[0];
 	cmd->mcode2 = printers[pm].model_code[1];
+	
+	printf("init_command() end\n");
 }
 
 int read_eeprom_address(int fd, int socket_id, unsigned int pm, unsigned short int addr, unsigned char* data)
@@ -1441,7 +1455,7 @@ int read_eeprom_address(int fd, int socket_id, unsigned int pm, unsigned short i
 	char onebyte[5]; //contains one or two HEX byte string ("B2\0" for example)
 	unsigned short int replyaddr; //reply address (for confirmation)
 
-	D(fprintf(stderr, "=== read_eeprom_address ===\n"))
+	printf("=== read_eeprom_address ===\n");
 
 	cmd[9] = addr & 0xFF;
 	if (printers[pm].twobyte_addresses)
@@ -1455,38 +1469,41 @@ int read_eeprom_address(int fd, int socket_id, unsigned int pm, unsigned short i
 	{
 		if ((addr >> 8) != 0)
 		{
-			D(fprintf(stderr, "Printer \"%s\" don't support two-byte addresses. Continuing using low byte only.\n", printers[pm].name));
+			printf( "Printer \"%s\" don't support two-byte addresses. Continuing using low byte only.\n", printers[pm].name);
 			addr = addr & 0xFF;
 		}
 	}
 
 	init_command((fcmd_header_t*)cmd, pm, EFCLS_EEPROM_READ, EFCMD_EEPROM_READ, cmd_args_count);
 
-	D(fprintf(stderr, "Reading eeprom address %#x... ", addr))
+	printf( "Reading eeprom address %#x... \n", addr);
 	actual = INPUT_BUF_LEN;
 	if (printer_transact(fd, socket_id, cmd, cmd_len, reply, &actual))
 	{
-		D(fprintf(stderr, "Transact failed.\n"))
+		printf("Error: Transact failed.\n");
 		return -1;
 	}
 
 	if (get_tag(reply, actual, "EE:", reply_data, 7))
 	{
-		D(fprintf(stderr, "Can't get reply data.\n"))
+		printf( " Error : Can't get reply data.\n");
 		return -1;
 	}
-	D_OK
+	
 
 	if (strlen(reply_data) != reply_data_len)
 	{
-		D(fprintf(stderr, "ReplyData length != %d\n", reply_data_len))
+		printf( "Warning : ReplyData length differ ! [%d][%d] \n", reply_data_len, strlen(reply_data));
 		reply_data_len -= 2; //assuming this is one-byte addresses printer
 		if (strlen(reply_data) == reply_data_len)
 		{
-			D(fprintf(stderr, "Seems like printer with one-byte addresses EEPROM.\n"))
+			printf("INFO : Seems like printer with one-byte addresses EEPROM.\n");
 		}
 		else
+		{
+			printf("error : printer EEPROM adress known one-byte? two-byte? \n");
 			return -1;
+		}
 	}
 
 	strncpy(onebyte, reply_data, reply_data_len - 2);
@@ -1495,7 +1512,7 @@ int read_eeprom_address(int fd, int socket_id, unsigned int pm, unsigned short i
 	replyaddr = strtol(onebyte, NULL, 16);
 	if (replyaddr != addr)
 	{
-		D(fprintf(stderr, "Reply address (%x) don't match requested (%x).\n", replyaddr, addr))
+		printf( "Error : Reply address (%x) don't match requested (%x).\n", replyaddr, addr);
 		return -1;
 	}
 
@@ -1503,9 +1520,9 @@ int read_eeprom_address(int fd, int socket_id, unsigned int pm, unsigned short i
 	onebyte[2] = '\0';
 	*data = strtol(onebyte, NULL, 16);
 
-	D(fprintf(stderr, "EEPROM addr %#x = %#x.\n", addr, *data))
+	printf("EEPROM addr %#x = %#x.\n", addr, *data);
 
-	D(fprintf(stderr, "^^^ read_eeprom_address ^^^\n"))
+	printf( "^^^ read_eeprom_address ^^^\n");
 
 	return 0;
 }
@@ -1520,7 +1537,7 @@ int write_eeprom_address(int fd, int socket_id, unsigned int pm, unsigned short 
 	int actual; // actual reply length
 	char reply_data[6]; // buffer for "OK" tag
 
-	D(fprintf(stderr, "=== write_eeprom_address ===\n"))
+	printf( "=== write_eeprom_address ===\n");
 
 	cmd[9] = addr & 0xFF;
 	if (printers[pm].twobyte_addresses)
@@ -1535,27 +1552,27 @@ int write_eeprom_address(int fd, int socket_id, unsigned int pm, unsigned short 
 		cmd[10] = (char)data;
 
 		if ((addr >> 8) != 0)
-			D(fprintf(stderr, "Printer \"%s\" don't support two-byte addresses. Continuing using low byte only.\n", printers[pm].name));
+			printf("Printer \"%s\" don't support two-byte addresses. Continuing using low byte only.\n", printers[pm].name);
 	}
 
 	init_command((fcmd_header_t*)cmd, pm, EFCLS_EEPROM_WRITE, EFCMD_EEPROM_WRITE, cmd_args_len);
 
-	D(fprintf(stderr, "Writing %#x to eeprom address %#x... ", data, addr))
+	printf("Error: Writing %#x to eeprom address %#x... \n", data, addr);
 	actual = INPUT_BUF_LEN;
 	if (printer_transact(fd, socket_id, cmd, cmd_len, reply, &actual))
 	{
-		D(fprintf(stderr, "Transact failed.\n"))
+		printf( "Error: Transact failed.\n");
 		return -1;
 	}
 
 	if (get_tag(reply, actual, "OK", reply_data, 6))
 	{
-		D(fprintf(stderr, "Can't get reply data.\n"))
+		printf( "Error : Can't get reply data.\n");
 		return -1;
 	}
-	D_OK
 
-	D(fprintf(stderr, "^^^ write_eeprom_address ^^^\n"))
+
+	printf( "^^^ write_eeprom_address ^^^\n");
 
 	return 0;
 }
