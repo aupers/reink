@@ -368,7 +368,8 @@ int main(int argc, char** argv)
 			command = CMD_GETINK;
 			break;
 		case 'r':
-			raw_device = optarg;
+			//raw_device = optarg;
+			raw_device = "/dev/usb/lp0";
 			break;
 		case 'd':
 			if (command != CMD_NONE)
@@ -524,6 +525,7 @@ int main(int argc, char** argv)
 	}
 	else if (command == CMD_REPORT)
 	{
+		/*
 		if (str_model_code)
 		{
 			if (strlen(str_model_code) != 4)
@@ -552,6 +554,9 @@ int main(int argc, char** argv)
 			model_code[0] = 0x00;
 			model_code[1] = 0x00;
 		}
+		*/
+		model_code[0] = 0x49;
+		model_code[1] = 0x08;
 	}
 	//end of options parsing
 
@@ -756,7 +761,7 @@ int do_eeprom_dump(struct ieee1284_socket *d4_sock,
 	unsigned short int cur_addr; //current address
 
 	reink_dbg("=== do_eeprom_dump ===\n");
-
+	/*
 	if (!d4_sock->parent->info->twobyte_addresses && (end_addr & 0xFF00))
 	{
 		reink_log("Printer \"%s\" doesn't support two-byte addresses, I will use lower byte only.\n",
@@ -764,8 +769,9 @@ int do_eeprom_dump(struct ieee1284_socket *d4_sock,
 		start_addr &= 0xFF;
 		end_addr &= 0xFF;
 	}
+	*/
 
-	reink_dbg("Let's get the EEPROM dump (%x - %x)...\n", start_addr, end_addr);
+	reink_dbg("Let's get the EEPROM dump (%04x - %04x)...\n", start_addr, end_addr);
 	/* Make sure the first chunk ends on a 16-byte boundary*/
 	start_offset = start_addr & 0x0f;
 
@@ -787,7 +793,7 @@ int do_eeprom_dump(struct ieee1284_socket *d4_sock,
 		start_addr += i;
 	}
 	DBG_OK();
-
+ 
 	reink_dbg("^^^ do_eeprom_dump ^^^\n");
 	return 0;
 }
@@ -954,8 +960,8 @@ int do_make_report(struct ieee1284_socket *ctrl_sock,
 		return 0;
 
 	//disabling debug before dump
-	setDebug(0);
-	ri_debug = 0;
+	//setDebug(0);
+	//ri_debug = 0;
 
 	printf("\nEEPROM DUMP:\n");
 	do_eeprom_dump(ctrl_sock, 0, 0xff);
